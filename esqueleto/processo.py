@@ -466,7 +466,21 @@ class Processo:
         #  * Na apresentação, a fila precisa ficar visível no terminal do
         #    coordenador: registre cada decisão com self._log (veja _fila_txt).
         #  * Comece pelos testes SEM rede: pytest -k "n2_06 or n2_07 or n2_10 or n2_11"
-        raise NotImplementedError("Parte A: _atender_request")
+        # Esqueleto original: raise NotImplementedError("Parte A: _atender_request")
+        conceder = False
+        with self._lock_rc:
+            if self.titular_rc is None:
+                self.titular_rc = origem
+                conceder = True
+                self._log(f"RC livre → concedo a P{origem}")
+            elif origem not in self.fila_requests:
+                self.fila_requests.append(origem)
+                self._log(f"RC ocupada por P{self.titular_rc} → P{origem} vai para a fila | fila: {self._fila_txt()}")
+            else:
+                self._log(f"REQUEST repetido de P{origem} ignorado | fila: {self._fila_txt()}")
+        # A titularidade é reservada antes do envio; a rede não prende o lock.
+        if conceder:
+            self._conceder(origem)
 
     def _atender_release(self, origem: int) -> None:
         """O coordenador recebeu um RELEASE de ``origem``.
@@ -483,7 +497,16 @@ class Processo:
         #    causar?
         #  * As preocupações de concorrência são as mesmas de _atender_request.
         #  * Testes: n2_08, n2_09 (sem rede); depois o nível 2 inteiro.
-        raise NotImplementedError("Parte A: _atender_release")
+        # Esqueleto original: raise NotImplementedError("Parte A: _atender_release")
+        with self._lock_rc:
+            if origem != self.titular_rc:
+                self._log(f"RELEASE de P{origem} ignorado: titular é P{self.titular_rc}")
+                return
+            proximo = self.fila_requests.pop(0) if self.fila_requests else None
+            self.titular_rc = proximo
+            self._log(f"RELEASE de P{origem} | próximo: {proximo} | fila: {self._fila_txt()}")
+        if proximo is not None:
+            self._conceder(proximo)
 
     def _conceder(self, pid: int) -> None:
         """Entrega o GRANT a ``pid`` (PRONTO).
@@ -540,7 +563,34 @@ class Processo:
             #  * Se o coordenador for você mesmo, mandar REQUEST pela rede não funciona
             #    (_enviar recusa o próprio ID). Que método do coordenador resolve?
             #  * Testes: n2_12 a n2_17; depois n4_27 a n4_29.
-            raise NotImplementedError("Parte B: requisitar_rc")
+            # Esqueleto original: raise NotImplementedError("Parte B: requisitar_rc")
+            falhas = 0
+            while self.ativo and falhas < tentativas:
+                coord = self.coordenador_id
+                with self._lock_cliente:
+                    self._coord_do_pedido = coord
+                    self._evento_grant.clear()
+                # Registra o destino antes do envio: o GRANT pode chegar imediatamente.
+                if coord == self.meu_id:
+                    self._atender_request(self.meu_id)
+                    entregue = True
+                else:
+                    entregue = self._enviar(coord, REQUEST)
+                resultado = self._aguardar_grant(coord) if entregue else ESGOTADO
+                if resultado == CONCEDIDO:
+                    try:
+                        self._executar_rc(mensagem)
+                    finally:
+                        self._liberar_rc()
+                    return True
+                if resultado == ENCERRADO:
+                    return False
+                if resultado == COORD_MUDOU:
+                    self._log("Coordenador mudou: refaço REQUEST sem consumir tentativa")
+                    continue
+                falhas += 1
+                self.iniciar_eleicao()
+            return False
         finally:
             with self._lock_cliente:
                 self.estado = OCIOSO
@@ -569,7 +619,14 @@ class Processo:
         #  * Este método e requisitar_rc rodam em threads diferentes: o que garante
         #    que os dois enxergam o mesmo estado?
         #  * Testes: n2_16 e n2_17; desafio: n5_33.
-        raise NotImplementedError("Parte B: _receber_grant")
+        # Esqueleto original: raise NotImplementedError("Parte B: _receber_grant")
+        with self._lock_cliente:
+            esperado = self.estado == AGUARDANDO and origem == self._coord_do_pedido
+            if esperado:
+                self.estado = NA_RC_ESTADO
+                self._evento_grant.set()
+                return
+        self._log(f"GRANT de P{origem} ignorado: não corresponde ao pedido pendente")
 
     def _aguardar_grant(self, coord: int) -> str:
         """Espera o GRANT do pedido feito a ``coord`` (PRONTO).

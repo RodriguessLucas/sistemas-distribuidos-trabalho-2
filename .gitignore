@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+.pytest_cache/
+esqueleto/log_service_pb2.py
+esqueleto/log_service_pb2_grpc.py
+esqueleto/saida/
