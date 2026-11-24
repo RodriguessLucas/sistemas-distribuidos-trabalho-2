@@ -1,0 +1,14 @@
+.........................21:25:02.906 P5 COORD | RELEASE de P2 | próximo: None | fila: []
+.21:25:04.200 P5 COORD | RELEASE de P4 | próximo: None | fila: []
+.21:25:05.163 P5 COORD | <- RELEASE de P1
+21:25:05.163 P5 COORD | RELEASE de P1 | próximo: None | fila: []
+.21:25:05.828 P5 COORD | <- RELEASE de P1
+..........21:25:13.466 P3 COORD | RELEASE de P2 | próximo: None | fila: []
+.21:25:14.557 P4 COORD | RELEASE de P1 | próximo: None | fila: []
+.21:25:16.839 P4 COORD | RELEASE de P2 | próximo: None | fila: []
+.21:25:18.919 P4 COORD | <- RELEASE de P2
+.21:25:19.786 P5 COORD | <- RELEASE de P3
+21:25:19.786 P5 COORD | RELEASE de P3 | próximo: None | fila: []
+...21:25:22.884 P5 COORD | RELEASE de P2 | próximo: None | fila: []
+.                           [100%]
+46 passed in 23.82s

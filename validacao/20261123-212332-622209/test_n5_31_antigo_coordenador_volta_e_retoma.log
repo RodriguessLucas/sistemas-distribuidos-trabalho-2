@@ -1,0 +1,105 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________________ test_n5_31_antigo_coordenador_volta_e_retoma _________________
+
+cluster = <testes.Cluster object at 0x79d8f34663c0>
+arbitro = <log_server.LogServiceServicer object at 0x79d8f34642f0>
+
+    @pytest.mark.nivel5
+    @pytest.mark.desafio
+    def test_n5_31_antigo_coordenador_volta_e_retoma(cluster, arbitro):
+        """P5 cai, P4 assume; P5 volta e, pelo Valentão, retoma a coordenação."""
+        procs = cluster.subir([5, 4, 3])
+        cluster.derrubar(5)
+        assert esperar_ate(lambda: cluster.todos_concordam_em(4), 5)
+        novo5 = Processo(5)          # P5 "reinicia" sem saber o que houve
+        cluster.monitor.envolver(novo5)
+        novo5.iniciar()
+        cluster.procs[5] = novo5
+>       assert esperar_ate(lambda: cluster.todos_concordam_em(5), 5), \
+            f"dois coordenadores? {cluster.coordenadores()}"
+E       AssertionError: dois coordenadores? {5: 4, 4: 5, 3: 5}
+E       assert False
+E        +  where False = esperar_ate(<function test_n5_31_antigo_coordenador_volta_e_retoma.<locals>.<lambda> at 0x79d8f0310f60>, 5)
+
+testes.py:641: AssertionError
+----------------------------- Captured stdout call -----------------------------
+21:23:32.803 P5 COORD | escutando em 127.0.0.1:50055 | coordenador presumido = EU
+21:23:32.803 P5 COORD | Iniciando eleição pelo Valentão
+21:23:32.804 P5 COORD | SOU O COORDENADOR (P5)
+21:23:32.804 P4 cli   | escutando em 127.0.0.1:50054 | coordenador presumido = P5
+21:23:32.805 P3 cli   | escutando em 127.0.0.1:50053 | coordenador presumido = P5
+21:23:32.805 P5 COORD | -> COORDINATOR para P1  (falhou: processo inalcançável)
+21:23:32.805 P5 COORD | -> COORDINATOR para P2  (falhou: processo inalcançável)
+21:23:32.805 P5 COORD | -> COORDINATOR para P3
+21:23:32.806 P3 cli   | <- COORDINATOR de P5
+21:23:32.806 P3 cli   | Coordenador agora é P5
+21:23:32.806 P5 COORD | <- ACK de P3
+21:23:32.806 P5 COORD | -> COORDINATOR para P4
+21:23:32.806 P4 cli   | <- COORDINATOR de P5
+21:23:32.806 P4 cli   | Coordenador agora é P5
+21:23:32.806 P5 COORD | <- ACK de P4
+21:23:32.956 P5 COORD | encerrado.
+21:23:33.104 P4 cli   | -> PING para P5  (falhou: processo inalcançável)
+21:23:33.104 P4 cli   | PING ao coordenador P5 sem resposta → eleição
+21:23:33.105 P4 cli   | Iniciando eleição pelo Valentão
+21:23:33.105 P4 cli   | -> ELECTION para P5  (falhou: processo inalcançável)
+21:23:33.105 P4 COORD | SOU O COORDENADOR (P4)
+21:23:33.105 P4 COORD | -> COORDINATOR para P1  (falhou: processo inalcançável)
+21:23:33.105 P4 COORD | -> COORDINATOR para P2  (falhou: processo inalcançável)
+21:23:33.105 P4 COORD | -> COORDINATOR para P3
+21:23:33.106 P3 cli   | <- COORDINATOR de P4
+21:23:33.106 P3 cli   | Coordenador agora é P4
+21:23:33.107 P3 cli   | -> PING para P5  (falhou: processo inalcançável)21:23:33.107 P4 COORD | <- ACK de P3
+
+21:23:33.107 P5 COORD | escutando em 127.0.0.1:50055 | coordenador presumido = EU
+21:23:33.108 P5 COORD | Iniciando eleição pelo Valentão21:23:33.108 P4 COORD | -> COORDINATOR para P5
+
+21:23:33.109 P5 COORD | SOU O COORDENADOR (P5)
+21:23:33.109 P5 COORD | <- COORDINATOR de P4
+21:23:33.109 P5 COORD | -> COORDINATOR para P1  (falhou: processo inalcançável)
+21:23:33.109 P5 COORD | -> COORDINATOR para P2  (falhou: processo inalcançável)
+21:23:33.109 P5 COORD | -> COORDINATOR para P3
+21:23:33.110 P3 cli   | <- COORDINATOR de P5
+21:23:33.110 P3 cli   | Coordenador agora é P5
+21:23:33.110 P5 COORD | <- ACK de P3
+21:23:33.111 P5 COORD | -> COORDINATOR para P4
+21:23:33.111 P4 COORD | <- COORDINATOR de P5
+21:23:34.109 P4 cli   | Coordenador agora é P5
+21:23:34.110 P5 COORD | <- ACK de P4
+21:23:34.110 P5 cli   | Coordenador agora é P4
+--------------------------- Captured stdout teardown ---------------------------
+21:23:38.155 P5 cli   | encerrado.
+21:23:38.155 P4 cli   | encerrado.
+21:23:38.155 P3 cli   | encerrado.
+
+=== Diagrama de sequência do teste que falhou ===
+                P1           P2           P3           P4           P5     
+                +            +            +            +            +      
+   0.000s                                                            +        P5 iniciado (coordenador presumido: P5)
+   0.001s                                               +            !        P4 iniciado (coordenador presumido: P5)
+   0.002s                                  +            |            !        P3 iniciado (coordenador presumido: P5)
+   0.002s        x....................COORDINATOR....................o      
+   0.002s                     x.............COORDINATOR..............o      
+   0.002s                                  <-------COORDINATOR-------o      
+   0.003s                                  |            <---COORD----o      
+   0.152s                                  |            |            X        P5 encerrado (falha)
+   0.301s                                  |            o....PING....x      
+   0.301s                                  |            o..ELECTION..x      
+   0.301s                                  |            *                     P4 assume a coordenação
+   0.302s        x.............COORDINATOR..............o                   
+   0.302s                     x.......COORDINATOR.......o                   
+   0.302s                                  <---COORD----o                   
+   0.304s                                  o..........PING...........x      
+   0.304s                                  |            !            +        P5 iniciado (coordenador presumido: P5)
+   0.305s                                  |            o---COORD---->      
+   0.306s        x....................COORDINATOR....................o      
+   0.306s                     x.............COORDINATOR..............o      
+   0.306s                                  <-------COORDINATOR-------o      
+   0.307s                                  |            <---COORD----o      
+   5.351s                                  |            |            X        P5 encerrado (falha)
+   5.351s                                  |            X                     P4 encerrado (falha)
+   5.352s                                  X                                  P3 encerrado (falha)
+=========================== short test summary info ============================
+FAILED testes.py::test_n5_31_antigo_coordenador_volta_e_retoma - AssertionErr...
+1 failed in 5.69s

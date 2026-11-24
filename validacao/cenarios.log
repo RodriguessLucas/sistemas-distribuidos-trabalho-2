@@ -1,0 +1,273 @@
+
+==============================================================================
+ CENÁRIO: fila
+==============================================================================
+
+[+  0.00s] ── Sobem P5 (coordenador) e os clientes P1..P4 ──
+
+[+  0.75s] ── P1, P2, P3 e P4 pedem a RC quase ao mesmo tempo ──
+
+[+  6.78s] ── Conferência ──
+   ✔ 4 acessos registrados (vieram 4)
+   ✔ ordem FIFO de chegada: ['P1', 'P2', 'P3', 'P4']
+   ✔ todos autorizados por P5
+   ✔ árbitro (log-server): nenhuma violação de exclusão mútua
+
+Diagrama de sequência (PING/PONG omitidos):
+
+                P1           P2           P3           P4           P5     
+                ┬            ┬            ┬            ┬            ┬      
+          ────────── Sobem P5 (coordenador) e os clientes P1..P4 ──────────
+   0.000s                                                            ◆        P5 iniciado (coordenador presumido: P5)
+   0.002s        ✕╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌COORDINATOR╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌●      
+   0.002s                     ✕╌╌╌╌╌╌╌╌╌╌╌╌╌COORDINATOR╌╌╌╌╌╌╌╌╌╌╌╌╌╌●      
+   0.002s                                  ✕╌╌╌╌╌╌╌COORDINATOR╌╌╌╌╌╌╌●      
+   0.002s                                               ✕╌╌╌COORD╌╌╌╌●      
+   0.151s                                               ◆            ║        P4 iniciado (coordenador presumido: P5)
+   0.301s                                  ◆            │            ║        P3 iniciado (coordenador presumido: P5)
+   0.452s                     ◆            │            │            ║        P2 iniciado (coordenador presumido: P5)
+   0.603s        ◆            │            │            │            ║        P1 iniciado (coordenador presumido: P5)
+          ──────── P1, P2, P3 e P4 pedem a RC quase ao mesmo tempo ────────
+   0.754s        ●──────────────────────REQUEST──────────────────────▶      
+   0.755s        ◀───────────────────────GRANT───────────────────────●      
+   0.755s        ┳            │            │            │            ║        P1 ENTRA na RC (autorizado por P5)
+   0.805s        ┃            ●───────────────REQUEST────────────────▶      
+   0.856s        ┃            │            ●─────────REQUEST─────────▶      
+   0.906s        ┃            │            │            ●──REQUEST───▶      
+   2.265s        ┻            │            │            │            ║        P1 SAI da RC
+   2.266s        ●──────────────────────RELEASE──────────────────────▶      
+   2.266s        │            ◀────────────────GRANT─────────────────●      
+   2.267s        │            ┳            │            │            ║        P2 ENTRA na RC (autorizado por P5)
+   3.771s        │            ┻            │            │            ║        P2 SAI da RC
+   3.772s        │            ●───────────────RELEASE────────────────▶      
+   3.772s        │            │            ◀──────────GRANT──────────●      
+   3.773s        │            │            ┳            │            ║        P3 ENTRA na RC (autorizado por P5)
+   5.278s        │            │            ┻            │            ║        P3 SAI da RC
+   5.278s        │            │            ●─────────RELEASE─────────▶      
+   5.279s        │            │            │            ◀───GRANT────●      
+   5.280s        │            │            │            ┳            ║        P4 ENTRA na RC (autorizado por P5)
+   6.784s        │            │            │            ┻            ║        P4 SAI da RC
+   6.784s        │            │            │            ●──RELEASE───▶      
+          ────────────────────────── Conferência ──────────────────────────
+   6.785s        │            │            │            │            ✖        P5 encerrado (falha)
+   6.785s        │            │            │            ✖                     P4 encerrado (falha)
+   6.785s        │            │            ✖                                  P3 encerrado (falha)
+   6.786s        │            ✖                                               P2 encerrado (falha)
+   6.786s        ✖                                                            P1 encerrado (falha)
+
+Visualização completa: /home/lucasrodrigues/workspace/arquivos/Matéria Facul/7 semestre/SD/trabalho_2_SD/esqueleto/saida/fila.html
+
+Cenário 'fila': todas as verificações passaram.
+
+==============================================================================
+ CENÁRIO: falha
+==============================================================================
+
+[+  0.00s] ── Sobem P5 (coordenador) e os clientes P1..P4 ──
+
+[+  0.75s] ── P2 acessa a RC normalmente, autorizado por P5 ──
+
+[+  2.26s] ── P1 entra na RC; P3 e P4 ficam na fila de P5 ──
+
+[+  2.76s] ── P5 FALHA (com P1 dentro da RC e P3, P4 na fila) ──
+
+[+  2.96s] ── Heartbeat detectou e o Valentão elegeu P4 (0.2s após a falha) ──
+   ✔ todos concordam que P4 é o coordenador: {4: 4, 3: 4, 2: 4, 1: 4}
+
+[+  6.78s] ── P2 volta a pedir a RC, agora a P4 ──
+
+[+  8.28s] ── Conferência ──
+   ✔ 5 acessos registrados (vieram 5)
+   ✔ P3, P4 e P2 atendidos por P4: ['P2', 'P3', 'P4']
+   ✔ a fila andou 1.0s após a falha (sem esperar TIMEOUT_GRANT=60s)
+   ✔ árbitro (log-server): nenhuma violação de exclusão mútua
+
+Diagrama de sequência (PING/PONG omitidos):
+
+                P1           P2           P3           P4           P5     
+                ┬            ┬            ┬            ┬            ┬      
+          ────────── Sobem P5 (coordenador) e os clientes P1..P4 ──────────
+   0.000s                                                            ◆        P5 iniciado (coordenador presumido: P5)
+   0.001s        ✕╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌COORDINATOR╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌●      
+   0.001s                     ✕╌╌╌╌╌╌╌╌╌╌╌╌╌COORDINATOR╌╌╌╌╌╌╌╌╌╌╌╌╌╌●      
+   0.001s                                  ✕╌╌╌╌╌╌╌COORDINATOR╌╌╌╌╌╌╌●      
+   0.001s                                               ✕╌╌╌COORD╌╌╌╌●      
+   0.151s                                               ◆            ║        P4 iniciado (coordenador presumido: P5)
+   0.302s                                  ◆            │            ║        P3 iniciado (coordenador presumido: P5)
+   0.453s                     ◆            │            │            ║        P2 iniciado (coordenador presumido: P5)
+   0.604s        ◆            │            │            │            ║        P1 iniciado (coordenador presumido: P5)
+          ───────── P2 acessa a RC normalmente, autorizado por P5 ─────────
+   0.754s        │            ●───────────────REQUEST────────────────▶      
+   0.755s        │            ◀────────────────GRANT─────────────────●      
+   0.756s        │            ┳            │            │            ║        P2 ENTRA na RC (autorizado por P5)
+   2.261s        │            ┻            │            │            ║        P2 SAI da RC
+   2.261s        │            ●───────────────RELEASE────────────────▶      
+          ────────── P1 entra na RC; P3 e P4 ficam na fila de P5 ──────────
+   2.262s        ●──────────────────────REQUEST──────────────────────▶      
+   2.262s        ◀───────────────────────GRANT───────────────────────●      
+   2.263s        ┳            │            │            │            ║        P1 ENTRA na RC (autorizado por P5)
+   2.462s        ┃            │            ●─────────REQUEST─────────▶      
+   2.462s        ┃            │            │            ●──REQUEST───▶      
+          ──────── P5 FALHA (com P1 dentro da RC e P3, P4 na fila) ────────
+   2.762s        ┃            │            │            │            ✖        P5 encerrado (falha)
+   2.935s        ┃            ●──ELECTION──▶            │                   
+   2.936s        ┃            │            ●──ELECTION──▶                   
+   2.938s        ┃            ◀───ANSWER───●            │                   
+   2.938s        ┃            ●────────ELECTION─────────▶                   
+   2.938s        ┃            │            ◀───ANSWER───●                   
+   2.939s        ┃            │            │            ●╌╌ELECTION╌╌✕      
+   2.939s        ┃            │            │            ★                     P4 assume a coordenação
+   2.940s        ◀─────────────COORDINATOR──────────────●                   
+   2.940s        ┃            │            ●╌╌╌╌╌╌╌╌ELECTION╌╌╌╌╌╌╌╌╌✕      
+   2.940s        ┃            ◀─────────ANSWER──────────●                   
+   2.941s        ┃            ●╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ELECTION╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌✕      
+   2.941s        ●──────────────ACK[NA_RC]──────────────▶                   
+   2.941s        ┃            ◀───────COORDINATOR───────●                   
+   2.942s        ┃            │            ◀───COORD────●                   
+   2.943s        ┃            │            │            ●╌╌╌COORD╌╌╌╌✕      
+          ─ Heartbeat detectou e o Valentão elegeu P4 (0.2s após a falha) ─
+   2.964s        ┃            │            ●──REQUEST───▶                   
+   3.767s        ┻            │            │            ║                     P1 SAI da RC
+   3.767s        ●───────────────RELEASE────────────────▶                   
+   3.768s        │            │            │            ┳                     P4 ENTRA na RC (autorizado por P4)
+   5.273s        │            │            │            ┻                     P4 SAI da RC
+   5.274s        │            │            ◀───GRANT────●                   
+   5.274s        │            │            ┳            ║                     P3 ENTRA na RC (autorizado por P4)
+   6.779s        │            │            ┻            ║                     P3 SAI da RC
+   6.779s        │            │            ●──RELEASE───▶                   
+          ─────────────── P2 volta a pedir a RC, agora a P4 ───────────────
+   6.780s        │            ●─────────REQUEST─────────▶                   
+   6.780s        │            ◀──────────GRANT──────────●                   
+   6.781s        │            ┳            │            ║                     P2 ENTRA na RC (autorizado por P4)
+   8.284s        │            ┻            │            ║                     P2 SAI da RC
+   8.284s        │            ●─────────RELEASE─────────▶                   
+          ────────────────────────── Conferência ──────────────────────────
+   8.285s        │            │            │            ✖                     P4 encerrado (falha)
+   8.285s        │            │            ✖                                  P3 encerrado (falha)
+   8.285s        │            ✖                                               P2 encerrado (falha)
+   8.285s        ✖                                                            P1 encerrado (falha)
+
+Visualização completa: /home/lucasrodrigues/workspace/arquivos/Matéria Facul/7 semestre/SD/trabalho_2_SD/esqueleto/saida/falha.html
+
+Cenário 'falha': todas as verificações passaram.
+
+==============================================================================
+ CENÁRIO: retorno
+==============================================================================
+
+[+  0.00s] ── Sobem P5 (coordenador), P4, P3 e P2 ──
+
+[+  0.60s] ── P5 falha ──
+   ✔ P4 eleito na ausência de P5
+
+[+  3.11s] ── P5 volta: ao subir, faz eleição e retoma a coordenação ──
+   ✔ todos voltam a ver P5 como coordenador: {5: 5, 4: 5, 3: 5, 2: 5}
+
+[+  3.17s] ── P2 pede a RC; quem autoriza é P5 ──
+   ✔ último acesso autorizado por P5
+   ✔ árbitro (log-server): nenhuma violação de exclusão mútua
+
+Diagrama de sequência (PING/PONG omitidos):
+
+                P1           P2           P3           P4           P5     
+                ┬            ┬            ┬            ┬            ┬      
+          ────────────── Sobem P5 (coordenador), P4, P3 e P2 ──────────────
+   0.001s                                                            ◆        P5 iniciado (coordenador presumido: P5)
+   0.001s        ✕╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌COORDINATOR╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌●      
+   0.001s                     ✕╌╌╌╌╌╌╌╌╌╌╌╌╌COORDINATOR╌╌╌╌╌╌╌╌╌╌╌╌╌╌●      
+   0.001s                                  ✕╌╌╌╌╌╌╌COORDINATOR╌╌╌╌╌╌╌●      
+   0.001s                                               ✕╌╌╌COORD╌╌╌╌●      
+   0.151s                                               ◆            ║        P4 iniciado (coordenador presumido: P5)
+   0.303s                                  ◆            │            ║        P3 iniciado (coordenador presumido: P5)
+   0.454s                     ◆            │            │            ║        P2 iniciado (coordenador presumido: P5)
+          ──────────────────────────── P5 falha ───────────────────────────
+   0.604s                     │            │            │            ✖        P5 encerrado (falha)
+   1.574s                     │            │            ●╌╌╌╌PING╌╌╌╌✕      
+   1.575s                     │            │            ●╌╌ELECTION╌╌✕      
+   1.575s                     │            │            ★                     P4 assume a coordenação
+   1.575s        ✕╌╌╌╌╌╌╌╌╌╌╌╌╌COORDINATOR╌╌╌╌╌╌╌╌╌╌╌╌╌╌●                   
+   1.575s                     ◀───────COORDINATOR───────●                   
+   1.577s                     │            ◀───COORD────●                   
+   1.578s                     │            │            ●╌╌╌COORD╌╌╌╌✕      
+   1.608s                     │            ●──REQUEST───▶                   
+   1.609s                     │            ◀───GRANT────●                   
+   1.609s                     │            ┳            ║                     P3 ENTRA na RC (autorizado por P4)
+   3.114s                     │            ┻            ║                     P3 SAI da RC
+   3.114s                     │            ●──RELEASE───▶                   
+          ───── P5 volta: ao subir, faz eleição e retoma a coordenação ────
+   3.115s                     │            │            ║            ◆        P5 iniciado (coordenador presumido: P5)
+   3.115s        ✕╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌COORDINATOR╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌●      
+   3.115s                     ◀─────────────COORDINATOR──────────────●      
+   3.116s                     │            ◀───────COORDINATOR───────●      
+   3.116s                     │            │            ◀───COORD────●      
+          ──────────────── P2 pede a RC; quem autoriza é P5 ───────────────
+   3.166s                     ●───────────────REQUEST────────────────▶      
+   3.167s                     ◀────────────────GRANT─────────────────●      
+   3.168s                     ┳            │            │            ║        P2 ENTRA na RC (autorizado por P5)
+   4.672s                     ┻            │            │            ║        P2 SAI da RC
+   4.673s                     ●───────────────RELEASE────────────────▶      
+   4.673s                     │            │            │            ✖        P5 encerrado (falha)
+   4.674s                     │            │            ✖                     P4 encerrado (falha)
+   4.674s                     │            ✖                                  P3 encerrado (falha)
+   4.674s                     ✖                                               P2 encerrado (falha)
+
+Visualização completa: /home/lucasrodrigues/workspace/arquivos/Matéria Facul/7 semestre/SD/trabalho_2_SD/esqueleto/saida/retorno.html
+
+Cenário 'retorno': todas as verificações passaram.
+
+==============================================================================
+ CENÁRIO: simultanea
+==============================================================================
+
+[+  0.00s] ── Sobem P5 (coordenador) e P1..P4 ──
+
+[+  0.75s] ── P5 falha; P1, P2 e P3 iniciam eleições ao mesmo tempo ──
+   ✔ um único coordenador (P4), visto por todos: {4: 4, 3: 4, 2: 4, 1: 4}
+   ✔ árbitro (log-server): nenhuma violação de exclusão mútua
+
+Diagrama de sequência (PING/PONG omitidos):
+
+                P1           P2           P3           P4           P5     
+                ┬            ┬            ┬            ┬            ┬      
+          ──────────────── Sobem P5 (coordenador) e P1..P4 ────────────────
+   0.001s                                                            ◆        P5 iniciado (coordenador presumido: P5)
+   0.001s        ✕╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌COORDINATOR╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌●      
+   0.002s                     ✕╌╌╌╌╌╌╌╌╌╌╌╌╌COORDINATOR╌╌╌╌╌╌╌╌╌╌╌╌╌╌●      
+   0.002s                                  ✕╌╌╌╌╌╌╌COORDINATOR╌╌╌╌╌╌╌●      
+   0.002s                                               ✕╌╌╌COORD╌╌╌╌●      
+   0.152s                                               ◆            ║        P4 iniciado (coordenador presumido: P5)
+   0.303s                                  ◆            │            ║        P3 iniciado (coordenador presumido: P5)
+   0.454s                     ◆            │            │            ║        P2 iniciado (coordenador presumido: P5)
+   0.605s        ◆            │            │            │            ║        P1 iniciado (coordenador presumido: P5)
+          ───── P5 falha; P1, P2 e P3 iniciam eleições ao mesmo tempo ─────
+   0.755s        │            │            │            │            ✖        P5 encerrado (falha)
+   0.756s        ●──ELECTION──▶            │            │                   
+   0.756s        │            │            ●──ELECTION──▶                   
+   0.757s        │            ●──ELECTION──▶            │                   
+   0.757s        ◀───ANSWER───●            │            │                   
+   0.758s        │            ◀───ANSWER───●            │                   
+   0.758s        │            │            ◀───ANSWER───●                   
+   0.758s        ●────────ELECTION─────────▶            │                   
+   0.759s        │            ●────────ELECTION─────────▶                   
+   0.759s        │            │            ●────────ELECTION─────────▶      
+   0.759s        │            │            │            ●──ELECTION──▶      
+   0.759s        ◀─────────ANSWER──────────●            │                   
+   0.759s        │            ◀─────────ANSWER──────────●                   
+   0.760s        ●───────────────ELECTION───────────────▶                   
+   0.760s        │            ●───────────────ELECTION───────────────▶      
+   0.760s        ◀────────────────ANSWER────────────────●                   
+   0.761s        ●─────────────────────ELECTION──────────────────────▶      
+   0.802s        │            │            │            ★                     P4 assume a coordenação
+   0.803s        ◀─────────────COORDINATOR──────────────●                   
+   0.804s        │            ◀───────COORDINATOR───────●                   
+   0.806s        │            │            ◀───COORD────●                   
+   0.806s        │            │            │            ✖                     P4 encerrado (falha)
+   0.806s        │            │            ✖                                  P3 encerrado (falha)
+   0.806s        │            ✖                                               P2 encerrado (falha)
+   0.806s        ✖                                                            P1 encerrado (falha)
+
+Visualização completa: /home/lucasrodrigues/workspace/arquivos/Matéria Facul/7 semestre/SD/trabalho_2_SD/esqueleto/saida/simultanea.html
+
+Cenário 'simultanea': todas as verificações passaram.
+
+Resumo: fila=ok, falha=ok, retorno=ok, simultanea=ok

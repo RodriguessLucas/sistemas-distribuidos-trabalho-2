@@ -13,17 +13,19 @@ if coleta.returncode:
     sys.exit(coleta.returncode)
 casos = [linha for linha in coleta.stdout.splitlines() if linha.startswith("testes.py::")]
 falhas = 0
+execucao = raiz / "validacao" / datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+execucao.mkdir()
 with (raiz / "DESENVOLVIMENTO.md").open("a") as diario:
     diario.write(f"\n### Execução: {' '.join(argumentos)}\n\n")
     for caso in casos:
         resultado = subprocess.run([sys.executable, "-m", "pytest", "-q", caso], cwd=pasta, text=True, capture_output=True)
         texto = resultado.stdout + resultado.stderr
         nome = caso.split("::", 1)[1]
-        caminho = raiz / "validacao" / (nome.replace("/", "_") + ".log")
+        caminho = execucao / (nome.replace("/", "_") + ".log")
         caminho.write_text(texto)
         status = "PASSOU" if resultado.returncode == 0 else "FALHOU"
         falhas += resultado.returncode != 0
-        diario.write(f"- **{nome}: {status}.** Evidência: [log](validacao/{caminho.name}).\n")
+        diario.write(f"- **{nome}: {status}.** Evidência: [log](<{caminho.relative_to(raiz).as_posix()}>).\n")
         diario.flush()
         print(f"{nome}: {status}", flush=True)
     diario.write(f"\nResultado: {len(casos) - falhas}/{len(casos)} casos passaram.\n")

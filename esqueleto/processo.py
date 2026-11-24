@@ -626,7 +626,14 @@ class Processo:
                 self.estado = NA_RC_ESTADO
                 self._evento_grant.set()
                 return
+            devolver = origem == self.coordenador_id and self.estado != NA_RC_ESTADO
         self._log(f"GRANT de P{origem} ignorado: não corresponde ao pedido pendente")
+        # Não devolver duplicata enquanto já está dentro da RC: isso a liberaria cedo.
+        if devolver:
+            if origem == self.meu_id:
+                self._atender_release(self.meu_id)
+            else:
+                self._enviar(origem, RELEASE)
 
     def _aguardar_grant(self, coord: int) -> str:
         """Espera o GRANT do pedido feito a ``coord`` (PRONTO).
@@ -823,16 +830,26 @@ class Processo:
         #    faria esse REQUEST esperar o fim dos anúncios?
         #  * Testes: n3_21 a n3_26; desafios: n5_30 e n5_34.
         # Esqueleto original: raise NotImplementedError("Parte C: _tornar_coordenador")
+        # A reconstrução é uma barreira: REQUEST/RELEASE esperam os ACKs.
+        # Aqui o lock durante a rede é necessário para não conceder com estado parcial.
         with self._lock_rc:
-            self.titular_rc = None
-            self.fila_requests.clear()
+            if not self.sou_coordenador():
+                self.titular_rc = None
+                self.fila_requests.clear()
+                with self._lock_cliente:
+                    if self.estado == NA_RC_ESTADO:
+                        self.titular_rc = self.meu_id
+            # Reafirmação mantém titular e FIFO; só um novo líder começa do zero.
             self.coordenador_id = self.meu_id
-        self._log(f"SOU O COORDENADOR (P{self.meu_id})")
-        for pid in sorted(config.PORTAS):
-            if not self.ativo:
-                return
-            if pid != self.meu_id:
-                self._enviar_e_aguardar(pid, COORDINATOR)
+            self._log(f"SOU O COORDENADOR (P{self.meu_id})")
+            for pid in sorted(config.PORTAS):
+                if not self.ativo:
+                    return
+                if pid != self.meu_id:
+                    resposta = self._enviar_e_aguardar(pid, COORDINATOR)
+                    if resposta is not None and resposta.tipo == ACK and resposta.extra == NA_RC:
+                        self.titular_rc = pid
+                        self._log(f"P{pid} está na RC (autorizado pelo coordenador anterior)")
         self._anuncio_recebido.set()
 
     def _receber_coordinator(self, novo: int) -> Optional[bytes]:
@@ -857,6 +874,14 @@ class Processo:
         #    thread: o remetente está esperando.)
         #  * Testes: n3_19 e n3_20; desafios: n5_30 e n5_32.
         # Esqueleto original: raise NotImplementedError("Parte C: _receber_coordinator")
+        if novo < self.meu_id:
+            # Responde sem esperar locks do anúncio local: os líderes podem
+            # estar anunciando um ao outro. O maior contesta em outra thread.
+            self._log(f"Contesto anúncio de P{novo}: meu ID é maior")
+            self._nova_thread(self.iniciar_eleicao, f"contestacao-P{self.meu_id}")
+            with self._lock_cliente:
+                situacao = NA_RC if self.estado == NA_RC_ESTADO else ""
+            return montar(ACK, self.meu_id, situacao)
         with self._lock_rc:
             if self.sou_coordenador() and novo != self.meu_id:
                 self.titular_rc = None
@@ -864,7 +889,9 @@ class Processo:
             self.coordenador_id = novo
         self._anuncio_recebido.set()
         self._log(f"Coordenador agora é P{novo}")
-        return montar(ACK, self.meu_id)
+        with self._lock_cliente:
+            situacao = NA_RC if self.estado == NA_RC_ESTADO else ""
+        return montar(ACK, self.meu_id, situacao)
 
     # ==================================================================
     # PARTE D -- Detecção de falhas (heartbeat)
