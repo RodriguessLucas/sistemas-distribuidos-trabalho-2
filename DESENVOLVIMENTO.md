@@ -103,3 +103,61 @@ A parte cliente também prevê repetição após falha e redirecionamento imedia
 - **test_n2_17_estados_do_cliente: PASSOU.** Evidência: [log](validacao/test_n2_17_estados_do_cliente.log).
 
 Resultado: 12/12 casos passaram.
+
+## Resultado da Parte B
+
+Os 12 testes do nível 2 passaram individualmente. As verificações de FIFO, máquina de estados, gRPC e monitor de exclusão mútua confirmaram a proposta das partes A e B.
+
+## Parte C — eleição (n3_18 a n3_22, n3_25 e n3_26)
+
+- n3_18: responder ANSWER na mesma conexão, sem bloquear pela eleição local.
+- n3_19: iniciar eleição em thread própria inclusive no coordenador atual; anunciar vitória a todos os outros IDs.
+- n3_20: atualizar coordenador conhecido, acordar quem aguarda anúncio e devolver ACK.
+- n3_21: desafiar todos os IDs maiores; se nenhum responder, assumir coordenação e anunciar. Caso haja resposta, esperar anúncio com prazo e repetir se faltar.
+- n3_22: a mesma regra elimina sucessivamente os maiores indisponíveis, permitindo que P3 vença quando P5 e P4 caem.
+- n3_25: usar a proteção pronta de iniciar_eleicao e rearmar evento antes dos envios para convergir em eleições simultâneas.
+- n3_26: sem maiores vivos, eleger a si mesmo e usar o caminho local do cliente para a RC.
+
+Nesta etapa o estado do novo coordenador é inicializado vazio; preservação em reafirmação e reconstrução por ACK ficam para os desafios.
+
+### Execução: -m nivel3 -k not heartbeat
+
+- **test_n3_18_election_e_respondido_com_answer: PASSOU.** Evidência: [log](validacao/test_n3_18_election_e_respondido_com_answer.log).
+- **test_n3_19_quem_responde_answer_assume_e_se_anuncia: PASSOU.** Evidência: [log](validacao/test_n3_19_quem_responde_answer_assume_e_se_anuncia.log).
+- **test_n3_20_coordinator_atualiza_a_visao_e_responde_ack: PASSOU.** Evidência: [log](validacao/test_n3_20_coordinator_atualiza_a_visao_e_responde_ack.log).
+- **test_n3_21_maior_processo_vivo_vence: PASSOU.** Evidência: [log](validacao/test_n3_21_maior_processo_vivo_vence.log).
+- **test_n3_22_eleicao_em_cascata: PASSOU.** Evidência: [log](validacao/test_n3_22_eleicao_em_cascata.log).
+- **test_n3_25_eleicoes_simultaneas_convergem: PASSOU.** Evidência: [log](validacao/test_n3_25_eleicoes_simultaneas_convergem.log).
+
+## Parte D — heartbeat (n3_23 e n3_24)
+
+- n3_23: esperar um intervalo, enviar PING ao coordenador atual e disparar eleição se não houver PONG. A eleição já implementada escolhe o maior vivo.
+- n3_24: PONG válido mantém a coordenação, sem eleição espúria; coordenador não vigia a si mesmo.
+
+Usar Event.wait tanto no jitter quanto no intervalo permite encerramento imediato. Se a coordenação mudar durante um PING, sua resposta antiga não inicia eleição contra o novo coordenador.
+- **test_n3_26_processo_sozinho_se_elege_e_usa_a_rc: PASSOU.** Evidência: [log](validacao/test_n3_26_processo_sozinho_se_elege_e_usa_a_rc.log).
+
+Resultado: 7/7 casos passaram.
+
+### Execução: -m nivel3 -k heartbeat
+
+- **test_n3_23_heartbeat_detecta_a_queda_sozinho: PASSOU.** Evidência: [log](validacao/test_n3_23_heartbeat_detecta_a_queda_sozinho.log).
+
+## Integração de continuidade — nível 4
+
+- n4_27: após queda, falha de entrega causa eleição, novo REQUEST e acesso autorizado pelo novo líder.
+- n4_28: pedido durante eleição aguarda sua conclusão por iniciar_eleicao; não deve gastar tentativas repetidamente com o coordenador morto.
+- n4_29: `_aguardar_grant` reconhece a mudança de coordenador; cliente refaz REQUEST imediatamente, sem consumir tentativa nem esperar TIMEOUT_GRANT.
+
+A suíte obrigatória não exige neste ponto o reconhecimento do titular anterior; isso é verificado especificamente por n5_30. O cenário demonstrativo será conferido após os desafios.
+- **test_n3_24_heartbeat_nao_dispara_eleicao_sem_falha: PASSOU.** Evidência: [log](validacao/test_n3_24_heartbeat_nao_dispara_eleicao_sem_falha.log).
+
+Resultado: 2/2 casos passaram.
+
+### Execução: -m nivel4
+
+- **test_n4_27_falha_e_reentrada_na_rc: PASSOU.** Evidência: [log](validacao/test_n4_27_falha_e_reentrada_na_rc.log).
+- **test_n4_28_pedido_durante_a_eleicao_nao_desiste: PASSOU.** Evidência: [log](validacao/test_n4_28_pedido_durante_a_eleicao_nao_desiste.log).
+- **test_n4_29_fila_do_coordenador_morto_e_redirecionada: PASSOU.** Evidência: [log](validacao/test_n4_29_fila_do_coordenador_morto_e_redirecionada.log).
+
+Resultado: 3/3 casos passaram.

@@ -1,0 +1,5 @@
+21:22:26.575 P2 cli   | -> ELECTION para P3
+21:22:26.576 P3 COORD | <- ACK de P2
+21:22:26.576 P3 COORD | <- ELECTION de P2
+.                                                                        [100%]
+1 passed in 0.65s

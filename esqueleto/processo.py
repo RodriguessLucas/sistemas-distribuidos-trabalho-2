@@ -762,7 +762,25 @@ class Processo:
         #  * Torne a eleição visível no log: na apresentação, ela precisa ser
         #    acompanhada pelos terminais.
         #  * Testes: n3_19 a n3_26.
-        raise NotImplementedError("Parte C: _conduzir_eleicao")
+        # Esqueleto original: raise NotImplementedError("Parte C: _conduzir_eleicao")
+        while self.ativo:
+            # Rearma antes de desafiar: o anúncio pode chegar durante os envios.
+            self._anuncio_recebido.clear()
+            maior_respondeu = False
+            self._log("Iniciando eleição pelo Valentão")
+            for pid in sorted(config.PORTAS):
+                if pid > self.meu_id:
+                    resposta = self._enviar_e_aguardar(pid, ELECTION)
+                    if resposta is not None and resposta.tipo == ANSWER:
+                        maior_respondeu = True
+            if not self.ativo:
+                return
+            if not maior_respondeu:
+                self._tornar_coordenador()
+                return
+            if self._anuncio_recebido.wait(config.TIMEOUT_ELEICAO):
+                return
+            self._log("Maior respondeu, mas não anunciou: reinicio eleição")
 
     def _receber_election(self, origem: int) -> Optional[bytes]:
         """Chegou um ELECTION de ``origem`` (um processo menor está em eleição).
@@ -778,7 +796,9 @@ class Processo:
         #  * A classe tem um utilitário para rodar algo em segundo plano.
         #  * Para montar a resposta, veja config.montar.
         #  * Testes: n3_18 e n3_19.
-        raise NotImplementedError("Parte C: _receber_election")
+        # Esqueleto original: raise NotImplementedError("Parte C: _receber_election")
+        self._nova_thread(self.iniciar_eleicao, f"eleicao-P{self.meu_id}")
+        return montar(ANSWER, self.meu_id)
 
     def _tornar_coordenador(self) -> None:
         """Este processo venceu a eleição: assume (ou reafirma) a coordenação e avisa
@@ -802,7 +822,18 @@ class Processo:
         #    anúncios, com que estado da RC ele seria julgado? Qual lock da classe
         #    faria esse REQUEST esperar o fim dos anúncios?
         #  * Testes: n3_21 a n3_26; desafios: n5_30 e n5_34.
-        raise NotImplementedError("Parte C: _tornar_coordenador")
+        # Esqueleto original: raise NotImplementedError("Parte C: _tornar_coordenador")
+        with self._lock_rc:
+            self.titular_rc = None
+            self.fila_requests.clear()
+            self.coordenador_id = self.meu_id
+        self._log(f"SOU O COORDENADOR (P{self.meu_id})")
+        for pid in sorted(config.PORTAS):
+            if not self.ativo:
+                return
+            if pid != self.meu_id:
+                self._enviar_e_aguardar(pid, COORDINATOR)
+        self._anuncio_recebido.set()
 
     def _receber_coordinator(self, novo: int) -> Optional[bytes]:
         """Chegou um COORDINATOR: ``novo`` anuncia que venceu a eleição.
@@ -825,7 +856,15 @@ class Processo:
         #    ver um processo MENOR se declarar coordenador? (Não responda na mesma
         #    thread: o remetente está esperando.)
         #  * Testes: n3_19 e n3_20; desafios: n5_30 e n5_32.
-        raise NotImplementedError("Parte C: _receber_coordinator")
+        # Esqueleto original: raise NotImplementedError("Parte C: _receber_coordinator")
+        with self._lock_rc:
+            if self.sou_coordenador() and novo != self.meu_id:
+                self.titular_rc = None
+                self.fila_requests.clear()
+            self.coordenador_id = novo
+        self._anuncio_recebido.set()
+        self._log(f"Coordenador agora é P{novo}")
+        return montar(ACK, self.meu_id)
 
     # ==================================================================
     # PARTE D -- Detecção de falhas (heartbeat)
@@ -850,7 +889,22 @@ class Processo:
         #  * O coordenador muda ao longo da vida do processo: de onde lê-lo, e quando?
         #  * Uma resposta que não é PONG conta como "vivo"?
         #  * Testes: n3_23, n3_24; depois o nível 4 inteiro.
-        raise NotImplementedError("Parte D: _heartbeat")
+        # Esqueleto original: raise NotImplementedError("Parte D: _heartbeat")
+        if self._parado.wait(random.uniform(0, config.JITTER_INICIAL_MAX)):
+            return
+        while not self._parado.wait(config.INTERVALO_HEARTBEAT):
+            coord = self.coordenador_id
+            if coord == self.meu_id:
+                continue
+            resposta = self._enviar_e_aguardar(coord, PING)
+            if not self.ativo:
+                return
+            # Uma resposta antiga não deve provocar eleição contra um novo líder.
+            if coord != self.coordenador_id:
+                continue
+            if resposta is None or resposta.tipo != PONG:
+                self._log(f"PING ao coordenador P{coord} sem resposta → eleição")
+                self.iniciar_eleicao()
 
     # ==================================================================
     # Diagnóstico                                     (PRONTO, não mexer)
